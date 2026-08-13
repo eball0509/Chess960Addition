@@ -40,7 +40,7 @@ class Board:
         self.grid[0][6] = Knight('black', 0, 6)
         
         # Place bishops
-        self.grid[7][2] = Bishop('white', 7, 2)
+        self.grid[7][2] = Queen('white', 7, 2)
         self.grid[7][5] = Bishop('white', 7, 5)
         self.grid[0][2] = Bishop('black', 0, 2)
         self.grid[0][5] = Bishop('black', 0, 5)
