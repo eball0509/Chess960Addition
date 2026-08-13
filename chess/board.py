@@ -4,54 +4,70 @@ Author: Sepehr Bayat | Open Source Chess MVP
 Board class for managing the chess board state, moves, and game rules.
 """
 
+import random
 from typing import Optional, Tuple, List
 from copy import deepcopy
 from chess.pieces import Piece, Pawn, Rook, Knight, Bishop, Queen, King
+from chess.chess960 import generate_chess960_back_rank, STANDARD_BACK_RANK
+
+# Maps piece-type strings (from a back-rank list) to their classes.
+PIECE_CLASSES = {
+    "rook": Rook,
+    "knight": Knight,
+    "bishop": Bishop,
+    "queen": Queen,
+    "king": King,
+}
+
+VARIANT_STANDARD = "standard"
+VARIANT_CHESS960 = "chess960"
 
 
 class Board:
     """Chess board managing piece placement and game state."""
     
-    def __init__(self):
-        """Initialize an empty board."""
+    def __init__(self, variant: str = VARIANT_STANDARD, rng: Optional[random.Random] = None):
+        """
+        Initialize a board.
+
+        Args:
+            variant: 'standard' (default) or 'chess960'. Determines how the
+                back rank is populated; everything else (pawns, move rules,
+                turn order) is identical between variants.
+            rng: Optional random.Random for deterministic Chess960 setup in
+                tests. Ignored for 'standard'.
+        """
         self.grid: List[List[Optional[Piece]]] = [[None for _ in range(8)] for _ in range(8)]
         self.current_turn = 'white'
         self.move_history: List[Tuple[Tuple[int, int], Tuple[int, int]]] = []
         self.en_passant_target: Optional[Tuple[int, int]] = None
+        self.variant = variant
+
+        if variant == VARIANT_CHESS960:
+            self.back_rank: List[str] = generate_chess960_back_rank(rng)
+        else:
+            self.back_rank = list(STANDARD_BACK_RANK)
+
         self._initialize_board()
     
     def _initialize_board(self):
-        """Set up the initial chess board position."""
+        """Set up the initial chess board position from self.back_rank.
+
+        Pawns are always on rows 1/6 regardless of variant. The back rank
+        (rooks/knights/bishops/queen/king) is placed from self.back_rank,
+        which is either the fixed standard order or a generated Chess960
+        arrangement -- black mirrors white on the same columns either way.
+        """
         # Place pawns
         for col in range(8):
             self.grid[6][col] = Pawn('white', 6, col)
             self.grid[1][col] = Pawn('black', 1, col)
-        
-        # Place rooks
-        self.grid[7][0] = Rook('white', 7, 0)
-        self.grid[7][7] = Rook('white', 7, 7)
-        self.grid[0][0] = Rook('black', 0, 0)
-        self.grid[0][7] = Rook('black', 0, 7)
-        
-        # Place knights
-        self.grid[7][1] = Knight('white', 7, 1)
-        self.grid[7][6] = Knight('white', 7, 6)
-        self.grid[0][1] = Knight('black', 0, 1)
-        self.grid[0][6] = Knight('black', 0, 6)
-        
-        # Place bishops
-        self.grid[7][2] = Bishop('white', 7, 2)
-        self.grid[7][5] = Bishop('white', 7, 5)
-        self.grid[0][2] = Bishop('black', 0, 2)
-        self.grid[0][5] = Bishop('black', 0, 5)
-        
-        # Place queens
-        self.grid[7][3] = Queen('white', 7, 3)
-        self.grid[0][3] = Queen('black', 0, 3)
-        
-        # Place kings
-        self.grid[7][4] = King('white', 7, 4)
-        self.grid[0][4] = King('black', 0, 4)
+
+        # Place back rank for both sides from the same column layout.
+        for col, piece_type in enumerate(self.back_rank):
+            piece_cls = PIECE_CLASSES[piece_type]
+            self.grid[7][col] = piece_cls('white', 7, col)
+            self.grid[0][col] = piece_cls('black', 0, col)
     
     def get_piece(self, row: int, col: int) -> Optional[Piece]:
         """Get the piece at the given position."""
@@ -363,6 +379,7 @@ class Board:
         new_board.current_turn = self.current_turn
         new_board.move_history = self.move_history.copy()
         new_board.en_passant_target = self.en_passant_target
+        new_board.variant = self.variant
+        new_board.back_rank = list(self.back_rank)
         
         return new_board
-

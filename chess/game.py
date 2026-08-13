@@ -9,7 +9,7 @@ from typing import Optional, Tuple, List
 from chess.board import Board
 from chess.evaluator import Evaluator
 from chess.ai import ChessAI
-from chess.menu import GameMenu
+from chess.menu import GameMenu, VariantMenu
 from chess.piece_images import PieceImageLoader
 from chess.constants import (
     SQUARE_SIZE, BOARD_SIZE, UI_PANEL_WIDTH, WINDOW_WIDTH, WINDOW_HEIGHT,
@@ -36,7 +36,8 @@ class Game:
         self.image_loader = PieceImageLoader()
         
         # Game state
-        self.board = Board()
+        self.variant: str = "standard"
+        self.board = Board(variant=self.variant)
         self.evaluator = Evaluator()
         self.selected_piece: Optional[Tuple[int, int]] = None
         self.valid_moves: List[Tuple[int, int]] = []
@@ -55,11 +56,22 @@ class Game:
     
     def show_menu(self) -> bool:
         """
-        Show the game mode selection menu.
-        
+        Show the variant-selection menu, then the opponent-type menu.
+
         Returns:
-            True if a mode was selected, False if closed
+            True if both a variant and a mode were selected, False if the
+            player closed the window/pressed ESC at either step.
         """
+        variant_menu = VariantMenu(self.screen)
+        selected_variant = variant_menu.run()
+        if not selected_variant:
+            return False
+
+        self.variant = selected_variant
+        # Rebuild the board for the chosen variant (Chess960 generates a
+        # fresh random back rank each time this menu flow runs).
+        self.board = Board(variant=self.variant)
+
         menu = GameMenu(self.screen)
         selected_mode = menu.run()
         
@@ -297,6 +309,12 @@ class Game:
         author = self.font_small.render("By Sepehr Bayat", True, UI_TEXT)
         self.screen.blit(author, (panel_x + 10, y_offset))
         y_offset += 40
+        
+        # Variant (Traditional / Chess960)
+        variant_label = "Chess960" if self.variant == "chess960" else "Traditional"
+        variant_surface = self.font_small.render(f"Variant: {variant_label}", True, UI_TEXT)
+        self.screen.blit(variant_surface, (panel_x + 10, y_offset))
+        y_offset += 30
         
         # Game mode
         if self.game_mode:
